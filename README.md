@@ -43,17 +43,10 @@ These insights are mapped onto a **color-coded, pixel-inspired visualization** �
 
 ---
 
-## 🖼️ Screenshots
+## 🖼️ Demo
 
-> *Replace these placeholders with your actual screenshots once available*
 
-### 🔹 Home Page
-![Home Page](https://via.placeholder.com/800x400.png?text=Home+Page+UI)
-*Main interface showing the document upload and navigation*
-
-### 🔹 Document Upload and Analysis
-![Analysis View](https://via.placeholder.com/800x400.png?text=Upload+and+Results+UI)
-*Document analysis results with pixel-inspired risk visualization*
+![Demo Video](https://youtu.be/xbc1LBHw-JA)
 
 ---
 
@@ -263,10 +256,10 @@ This project is licensed under the MIT License – see the [LICENSE](LICENSE) fi
 ## 👥 Team Members
 
 **Hotel California Team:**
-- Project Lead & AI Integration
-- Frontend Development & UI/UX
-- Backend Architecture & API Design
-- Documentation & Testing
+Kratik Mudgal - Project Lead & AI Integration, Backend Architecture & API Design, Frontend Development
+Dhruvraj Singh Rathore - PPT Creation, Backend, Testing 
+Sia Kapila - PPT Creation, UI/UX, Testing
+Nandan Patil - PPT Creation 
 
 ---
 
