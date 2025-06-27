@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Query
 from pydantic import BaseModel
 import re
 import os
@@ -125,13 +125,27 @@ def map_risk_to_color(risk_level: str) -> str:
 
 # --- Primary API Endpoint for Text Analysis ---
 @app.post("/analyze", response_model=FullAnalysisResponse)
-async def analyze_document_text(document: DocumentText):
+async def analyze_document_text(
+    document: DocumentText,
+    risk_prompt_index: int = Query(0, description="Index of the prompt to use for risk identification from prompts.py"),
+    jargon_prompt_index: int = Query(0, description="Index of the prompt to use for jargon simplification from prompts.py"),
+    overall_summary_prompt_index: int = Query(0, description="Index of the prompt to use for overall summary from prompts.py")
+):
     """
     Primary API endpoint to receive a legal document (plain text) and return its risk analysis.
+    Allows dynamic selection of prompts from prompts.py using indices.
     """
     try:
         raw_text = document.text
         logger.info(f"Received document for analysis. Length: {len(raw_text)} characters.")
+
+        # Validate prompt indices
+        if not (0 <= risk_prompt_index < len(PROMPT_TEMPLATES["risk_identification"])):
+            raise HTTPException(status_code=400, detail=f"Invalid risk_prompt_index. Must be between 0 and {len(PROMPT_TEMPLATES['risk_identification']) - 1}.")
+        if not (0 <= jargon_prompt_index < len(PROMPT_TEMPLATES["jargon_simplification"])):
+            raise HTTPException(status_code=400, detail=f"Invalid jargon_prompt_index. Must be between 0 and {len(PROMPT_TEMPLATES['jargon_simplification']) - 1}.")
+        if not (0 <= overall_summary_prompt_index < len(PROMPT_TEMPLATES["overall_summary"])):
+            raise HTTPException(status_code=400, detail=f"Invalid overall_summary_prompt_index. Must be between 0 and {len(PROMPT_TEMPLATES['overall_summary']) - 1}.")
 
         # 1. Text Preprocessing
         cleaned_text = preprocess_text(raw_text)
@@ -143,16 +157,14 @@ async def analyze_document_text(document: DocumentText):
 
         # 2. LLM Interaction for Each Chunk
         for i, chunk in enumerate(text_chunks):
-            # --- USING PROMPT TEMPLATES HERE ---
-            # Select the first prompt for risk identification and format it
-            risk_prompt_template = PROMPT_TEMPLATES["risk_identification"][0]
-            risk_prompt = risk_prompt_template.format(chunk=chunk)
+            # --- USING DYNAMIC PROMPT SELECTION HERE ---
+            risk_prompt_template = PROMPT_TEMPLATES["risk_identification"][risk_prompt_index]
+            risk_prompt = risk_prompt_template.format(chunk=chunk) # Only 'chunk' is reliably available here for formatting
 
             risk_analysis_output = await call_llm_api(risk_prompt, "risk_identification")
 
-            # Select the first prompt for jargon simplification and format it
-            jargon_prompt_template = PROMPT_TEMPLATES["jargon_simplification"][0]
-            jargon_prompt = jargon_prompt_template.format(chunk=chunk)
+            jargon_prompt_template = PROMPT_TEMPLATES["jargon_simplification"][jargon_prompt_index]
+            jargon_prompt = jargon_prompt_template.format(chunk=chunk) # Only 'chunk' is reliably available here for formatting
             simplified_output = await call_llm_api(jargon_prompt, "jargon_simplification")
 
             # 3. Data Structuring for Frontend
@@ -169,9 +181,8 @@ async def analyze_document_text(document: DocumentText):
             ))
             overall_summary_parts.append(f"Chunk {i+1} ({risk_level} risk): {simplified_explanation}")
 
-        # --- USING PROMPT TEMPLATES HERE ---
-        # Select the first prompt for overall summary and format it
-        overall_summary_prompt_template = PROMPT_TEMPLATES["overall_summary"][0]
+        # --- USING DYNAMIC PROMPT SELECTION HERE ---
+        overall_summary_prompt_template = PROMPT_TEMPLATES["overall_summary"][overall_summary_prompt_index]
         overall_summary_prompt = overall_summary_prompt_template.format(
             summary_parts=' '.join(overall_summary_parts),
             raw_text_snippet=raw_text[:2000] # Provide a snippet of original text for context
@@ -198,9 +209,15 @@ from PyPDF2 import PdfReader
 import docx
 
 @app.post("/upload-and-analyze", response_model=FullAnalysisResponse)
-async def upload_and_analyze_document(file: UploadFile = File(...)):
+async def upload_and_analyze_document(
+    file: UploadFile = File(...),
+    risk_prompt_index: int = Query(0, description="Index of the prompt to use for risk identification from prompts.py"),
+    jargon_prompt_index: int = Query(0, description="Index of the prompt to use for jargon simplification from prompts.py"),
+    overall_summary_prompt_index: int = Query(0, description="Index of the prompt to use for overall summary from prompts.py")
+):
     """
     Stretch Goal: Receives a document file (PDF or DOCX), extracts text, and performs analysis.
+    Allows dynamic selection of prompts from prompts.py using indices.
     """
     extracted_text = ""
     try:
@@ -219,7 +236,13 @@ async def upload_and_analyze_document(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Unsupported file type. Please upload PDF or DOCX.")
 
         document_for_analysis = DocumentText(text=extracted_text)
-        return await analyze_document_text(document_for_analysis)
+        # Pass the selected prompt indices to the analyze_document_text function
+        return await analyze_document_text(
+            document_for_analysis,
+            risk_prompt_index=risk_prompt_index,
+            jargon_prompt_index=jargon_prompt_index,
+            overall_summary_prompt_index=overall_summary_prompt_index
+        )
 
     except HTTPException as e:
         raise e
