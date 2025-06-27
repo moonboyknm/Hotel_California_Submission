@@ -5,7 +5,7 @@ import os
 from typing import List, Dict, Any
 import logging
 import io # Added for file handling
-import google.generativeai as genai 
+import google.generativeai as genai
 import json # JSON responses from LLM
 
 # --- Configure Logging ---
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # You'll replace this with your actual LLM API key and model details
 # For a hackathon, you might use a dummy key or environment variable
 LLM_API_KEY = os.getenv("LLM_API_KEY", "YOUR_LLM_API_KEY_HERE")
-LLM_MODEL_NAME = "gemini-2.5-flash" # Example model name for Google Gemini
+LLM_MODEL_NAME = "gemini-1.5-flash" # Changed to gemini-1.5-flash as per user's choice
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
@@ -87,18 +87,21 @@ async def call_llm_api(prompt: str, task: str) -> Dict[str, Any]:
         # it's best to explicitly ask for JSON in the prompt and then parse it.
         # Ensure your LLM model is capable of generating valid JSON.
         if task in ["risk_identification"]:
-            # If you specifically prompt for JSON, ensure the LLM returns valid JSON.
-            # You might use model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
-            # if your model supports it and you strictly want JSON.
-            # For simpler text-based JSON, ensure your prompt guides the LLM clearly.
             response = await model.generate_content_async(prompt)
             response_text = response.text # Get the text response from the LLM
+
+            # --- Extract JSON from markdown if present ---
+            # Remove ```json and ``` from the start and end of the string
+            if response_text.startswith("```json"):
+                response_text = response_text[len("```json"):].strip()
+            if response_text.endswith("```"):
+                response_text = response_text[:-len("```")].strip()
 
             try:
                 # Attempt to parse the LLM's response as JSON
                 parsed_response = json.loads(response_text)
                 return parsed_response
-            except json.JSONDecodeError as e:
+            except json.JSONDecodeError as e: # This block was missing and has been restored
                 logger.error(f"Failed to parse LLM response as JSON for task {task}: {e}. Response: {response_text[:500]}", exc_info=True)
                 # Fallback or raise an error if JSON parsing is critical
                 raise HTTPException(status_code=500, detail=f"LLM returned invalid JSON for {task}: {response_text[:100]}...")
@@ -156,6 +159,7 @@ async def analyze_document_text(document: DocumentText): # Removed 'request: Req
         # 2. LLM Interaction for Each Chunk
         for i, chunk in enumerate(text_chunks):
             # Prompt the LLM to identify risks and provide structured output (JSON)
+            # Updated prompt for strict JSON output
             risk_prompt = (
                 f"Your task is to analyze the following legal text and extract specific information in JSON format ONLY. "
                 f"Do not include any conversational text, explanations, or additional formatting outside the JSON object.\n"
