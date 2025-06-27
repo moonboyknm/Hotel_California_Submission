@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # You'll replace this with your actual LLM API key and model details
 # For a hackathon, you might use a dummy key or environment variable
 LLM_API_KEY = os.getenv("LLM_API_KEY", "YOUR_LLM_API_KEY_HERE")
-LLM_MODEL_NAME = "gemini-pro" # Example model name for Google Gemini
+LLM_MODEL_NAME = "gemini-2.5-flash" # Example model name for Google Gemini
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
