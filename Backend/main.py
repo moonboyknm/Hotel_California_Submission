@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Query
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel
 import re
 import os
@@ -8,7 +8,7 @@ import io
 import google.generativeai as genai
 import json
 
-# Import PROMPT_TEMPLATES from the new prompts.py file
+# Import PROMPT_TEMPLATES from the prompts.py file
 from prompts import PROMPT_TEMPLATES
 
 # --- Configure Logging ---
@@ -36,6 +36,8 @@ class AnalysisResult(BaseModel):
     color_code: str # e.g., "#FF0000" for high, "#FFFF00" for medium
     simplified_explanation: str
     inter_clause_dependencies: List[Dict[str, str]] # e.g., [{"clause_id": "clause_X", "dependency_type": "reinforces"}]
+    # New field to capture all detailed analysis results
+    detailed_analysis_results: Dict[str, Any] # Flexible dictionary for diverse insights
 
 class FullAnalysisResponse(BaseModel):
     document_title: str # You might extract this or provide a default
@@ -80,7 +82,8 @@ async def call_llm_api(prompt: str, task: str) -> Dict[str, Any]:
         genai.configure(api_key=LLM_API_KEY)
         model = genai.GenerativeModel(LLM_MODEL_NAME)
 
-        if task in ["risk_identification"]:
+        # For detailed analysis, we expect a complex JSON structure
+        if task in ["detailed_analysis"]:
             response = await model.generate_content_async(prompt)
             response_text = response.text
 
@@ -97,14 +100,13 @@ async def call_llm_api(prompt: str, task: str) -> Dict[str, Any]:
                 logger.error(f"Failed to parse LLM response as JSON for task {task}: {e}. Response: {response_text[:500]}", exc_info=True)
                 raise HTTPException(status_code=500, detail=f"LLM returned invalid JSON for {task}: {response_text[:100]}...")
 
-        elif task in ["jargon_simplification", "overall_summary"]:
+        # For overall summary, we still expect plain text
+        elif task == "overall_summary":
             response = await model.generate_content_async(prompt)
             response_text = response.text
-            if task == "jargon_simplification":
-                return {"simplified_text": response_text}
-            elif task == "overall_summary":
-                return {"summary": response_text}
+            return {"summary": response_text}
         else:
+            # Fallback for any other tasks, though 'detailed_analysis' should cover most
             response = await model.generate_content_async(prompt)
             return {"analysis": response.text}
 
@@ -125,27 +127,14 @@ def map_risk_to_color(risk_level: str) -> str:
 
 # --- Primary API Endpoint for Text Analysis ---
 @app.post("/analyze", response_model=FullAnalysisResponse)
-async def analyze_document_text(
-    document: DocumentText,
-    risk_prompt_index: int = Query(0, description="Index of the prompt to use for risk identification from prompts.py"),
-    jargon_prompt_index: int = Query(0, description="Index of the prompt to use for jargon simplification from prompts.py"),
-    overall_summary_prompt_index: int = Query(0, description="Index of the prompt to use for overall summary from prompts.py")
-):
+async def analyze_document_text(document: DocumentText):
     """
-    Primary API endpoint to receive a legal document (plain text) and return its risk analysis.
-    Allows dynamic selection of prompts from prompts.py using indices.
+    Primary API endpoint to receive a legal document (plain text) and return its comprehensive risk analysis.
+    Uses a single, comprehensive LLM call per chunk to gather all types of insights.
     """
     try:
         raw_text = document.text
         logger.info(f"Received document for analysis. Length: {len(raw_text)} characters.")
-
-        # Validate prompt indices
-        if not (0 <= risk_prompt_index < len(PROMPT_TEMPLATES["risk_identification"])):
-            raise HTTPException(status_code=400, detail=f"Invalid risk_prompt_index. Must be between 0 and {len(PROMPT_TEMPLATES['risk_identification']) - 1}.")
-        if not (0 <= jargon_prompt_index < len(PROMPT_TEMPLATES["jargon_simplification"])):
-            raise HTTPException(status_code=400, detail=f"Invalid jargon_prompt_index. Must be between 0 and {len(PROMPT_TEMPLATES['jargon_simplification']) - 1}.")
-        if not (0 <= overall_summary_prompt_index < len(PROMPT_TEMPLATES["overall_summary"])):
-            raise HTTPException(status_code=400, detail=f"Invalid overall_summary_prompt_index. Must be between 0 and {len(PROMPT_TEMPLATES['overall_summary']) - 1}.")
 
         # 1. Text Preprocessing
         cleaned_text = preprocess_text(raw_text)
@@ -155,34 +144,40 @@ async def analyze_document_text(
         analysis_chunks: List[AnalysisResult] = []
         overall_summary_parts: List[str] = []
 
-        # 2. LLM Interaction for Each Chunk
+        # 2. LLM Interaction for Each Chunk (now a single, comprehensive call)
         for i, chunk in enumerate(text_chunks):
-            # --- USING DYNAMIC PROMPT SELECTION HERE ---
-            risk_prompt_template = PROMPT_TEMPLATES["risk_identification"][risk_prompt_index]
-            risk_prompt = risk_prompt_template.format(chunk=chunk) # Only 'chunk' is reliably available here for formatting
+            # --- USING NEW DETAILED_ANALYSIS PROMPT ---
+            # Using the first (and likely only) detailed_analysis prompt
+            detailed_analysis_prompt_template = PROMPT_TEMPLATES["detailed_analysis"][0]
+            detailed_prompt = detailed_analysis_prompt_template.format(chunk=chunk)
 
-            risk_analysis_output = await call_llm_api(risk_prompt, "risk_identification")
+            detailed_analysis_output = await call_llm_api(detailed_prompt, "detailed_analysis")
 
-            jargon_prompt_template = PROMPT_TEMPLATES["jargon_simplification"][jargon_prompt_index]
-            jargon_prompt = jargon_prompt_template.format(chunk=chunk) # Only 'chunk' is reliably available here for formatting
-            simplified_output = await call_llm_api(jargon_prompt, "jargon_simplification")
+            # Extract data from the comprehensive JSON output
+            risk_level = detailed_analysis_output.get("risk_level", "neutral")
+            simplified_explanation = detailed_analysis_output.get("simplified_explanation", "No specific explanation provided.")
+            inter_dependencies = detailed_analysis_output.get("inter_clause_dependencies", [])
 
-            # 3. Data Structuring for Frontend
-            risk_level = risk_analysis_output.get("risk_level", "neutral")
-            simplified_explanation = simplified_output.get("simplified_text", risk_analysis_output.get("simplified_explanation", "No specific explanation provided."))
-            inter_dependencies = risk_analysis_output.get("inter_clause_dependencies", [])
+            # Capture all other detailed results
+            # Exclude the fields already extracted for top-level keys
+            other_detailed_results = {
+                k: v for k, v in detailed_analysis_output.items()
+                if k not in ["risk_level", "simplified_explanation", "inter_clause_dependencies"]
+            }
 
             analysis_chunks.append(AnalysisResult(
                 original_text_snippet=chunk,
                 risk_level=risk_level,
                 color_code=map_risk_to_color(risk_level),
                 simplified_explanation=simplified_explanation,
-                inter_clause_dependencies=inter_dependencies
+                inter_clause_dependencies=inter_dependencies,
+                detailed_analysis_results=other_detailed_results
             ))
+            # Use simplified explanation for overall summary parts
             overall_summary_parts.append(f"Chunk {i+1} ({risk_level} risk): {simplified_explanation}")
 
-        # --- USING DYNAMIC PROMPT SELECTION HERE ---
-        overall_summary_prompt_template = PROMPT_TEMPLATES["overall_summary"][overall_summary_prompt_index]
+        # --- Overall Summary ---
+        overall_summary_prompt_template = PROMPT_TEMPLATES["overall_summary"][0] # Still uses first overall_summary prompt
         overall_summary_prompt = overall_summary_prompt_template.format(
             summary_parts=' '.join(overall_summary_parts),
             raw_text_snippet=raw_text[:2000] # Provide a snippet of original text for context
@@ -209,15 +204,9 @@ from PyPDF2 import PdfReader
 import docx
 
 @app.post("/upload-and-analyze", response_model=FullAnalysisResponse)
-async def upload_and_analyze_document(
-    file: UploadFile = File(...),
-    risk_prompt_index: int = Query(0, description="Index of the prompt to use for risk identification from prompts.py"),
-    jargon_prompt_index: int = Query(0, description="Index of the prompt to use for jargon simplification from prompts.py"),
-    overall_summary_prompt_index: int = Query(0, description="Index of the prompt to use for overall summary from prompts.py")
-):
+async def upload_and_analyze_document(file: UploadFile = File(...)):
     """
-    Stretch Goal: Receives a document file (PDF or DOCX), extracts text, and performs analysis.
-    Allows dynamic selection of prompts from prompts.py using indices.
+    Stretch Goal: Receives a document file (PDF or DOCX), extracts text, and performs comprehensive analysis.
     """
     extracted_text = ""
     try:
@@ -236,13 +225,8 @@ async def upload_and_analyze_document(
             raise HTTPException(status_code=400, detail="Unsupported file type. Please upload PDF or DOCX.")
 
         document_for_analysis = DocumentText(text=extracted_text)
-        # Pass the selected prompt indices to the analyze_document_text function
-        return await analyze_document_text(
-            document_for_analysis,
-            risk_prompt_index=risk_prompt_index,
-            jargon_prompt_index=jargon_prompt_index,
-            overall_summary_prompt_index=overall_summary_prompt_index
-        )
+        # Call analyze_document_text, which now performs comprehensive analysis
+        return await analyze_document_text(document_for_analysis)
 
     except HTTPException as e:
         raise e
