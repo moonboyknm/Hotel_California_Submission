@@ -4,19 +4,20 @@ import re
 import os
 from typing import List, Dict, Any
 import logging
-import io # Added for file handling
+import io
 import google.generativeai as genai
-import json # JSON responses from LLM
+import json
+
+# Import PROMPT_TEMPLATES from the new prompts.py file
+from prompts import PROMPT_TEMPLATES
 
 # --- Configure Logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # --- Configuration ---
-# You'll replace this with your actual LLM API key and model details
-# For a hackathon, you might use a dummy key or environment variable
 LLM_API_KEY = os.getenv("LLM_API_KEY", "YOUR_LLM_API_KEY_HERE")
-LLM_MODEL_NAME = "gemini-1.5-flash" # Changed to gemini-1.5-flash as per user's choice
+LLM_MODEL_NAME = "gemini-1.5-flash"
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
@@ -48,7 +49,6 @@ def preprocess_text(text: str) -> str:
     """Removes irrelevant elements and standardizes text format."""
     # Remove excessive whitespace, newlines, tabs
     text = re.sub(r'\s+', ' ', text).strip()
-    # You might add more advanced cleaning here (e.g., removing headers/footers based on patterns)
     return text
 
 def segment_text(text: str, max_chunk_size: int = 500) -> List[str]:
@@ -60,15 +60,13 @@ def segment_text(text: str, max_chunk_size: int = 500) -> List[str]:
     chunks = []
     current_chunk = ""
     for sentence in sentences:
-        # Check if adding the current sentence would exceed the max_chunk_size
-        # +1 for the space after the sentence
         if len(current_chunk) + len(sentence) + (1 if current_chunk else 0) <= max_chunk_size:
             current_chunk += (sentence + " ").strip()
         else:
-            if current_chunk: # Add the current chunk if it's not empty
+            if current_chunk:
                 chunks.append(current_chunk)
             current_chunk = (sentence + " ").strip()
-    if current_chunk: # Add the last chunk if it's not empty
+    if current_chunk:
         chunks.append(current_chunk)
     return chunks
 
@@ -79,35 +77,27 @@ async def call_llm_api(prompt: str, task: str) -> Dict[str, Any]:
     logger.info(f"Calling LLM for task: {task} with prompt sample: {prompt[:100]}...")
 
     try:
-        # --- Actual Google Gemini Integration ---
         genai.configure(api_key=LLM_API_KEY)
         model = genai.GenerativeModel(LLM_MODEL_NAME)
 
-        # For tasks where you expect structured (JSON) output from the LLM,
-        # it's best to explicitly ask for JSON in the prompt and then parse it.
-        # Ensure your LLM model is capable of generating valid JSON.
         if task in ["risk_identification"]:
             response = await model.generate_content_async(prompt)
-            response_text = response.text # Get the text response from the LLM
+            response_text = response.text
 
             # --- Extract JSON from markdown if present ---
-            # Remove ```json and ``` from the start and end of the string
             if response_text.startswith("```json"):
                 response_text = response_text[len("```json"):].strip()
             if response_text.endswith("```"):
                 response_text = response_text[:-len("```")].strip()
 
             try:
-                # Attempt to parse the LLM's response as JSON
                 parsed_response = json.loads(response_text)
                 return parsed_response
-            except json.JSONDecodeError as e: # This block was missing and has been restored
+            except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse LLM response as JSON for task {task}: {e}. Response: {response_text[:500]}", exc_info=True)
-                # Fallback or raise an error if JSON parsing is critical
                 raise HTTPException(status_code=500, detail=f"LLM returned invalid JSON for {task}: {response_text[:100]}...")
 
         elif task in ["jargon_simplification", "overall_summary"]:
-            # For tasks where you expect plain text, just return the text.
             response = await model.generate_content_async(prompt)
             response_text = response.text
             if task == "jargon_simplification":
@@ -115,16 +105,11 @@ async def call_llm_api(prompt: str, task: str) -> Dict[str, Any]:
             elif task == "overall_summary":
                 return {"summary": response_text}
         else:
-            # Fallback for any other tasks, or specific handling if needed
             response = await model.generate_content_async(prompt)
             return {"analysis": response.text}
 
     except Exception as e:
         logger.error(f"LLM API call failed for task {task}: {e}", exc_info=True)
-        # Check for specific exceptions like API key errors, rate limits, etc.
-        # Example for Google Generative AI (you might need to refine this based on actual errors):
-        # if "API key not valid" in str(e):
-        #     raise HTTPException(status_code=401, detail="Invalid LLM API Key.")
         raise HTTPException(status_code=500, detail=f"LLM analysis failed: {e}")
 
 def map_risk_to_color(risk_level: str) -> str:
@@ -140,7 +125,7 @@ def map_risk_to_color(risk_level: str) -> str:
 
 # --- Primary API Endpoint for Text Analysis ---
 @app.post("/analyze", response_model=FullAnalysisResponse)
-async def analyze_document_text(document: DocumentText): # Removed 'request: Request' if not explicitly used
+async def analyze_document_text(document: DocumentText):
     """
     Primary API endpoint to receive a legal document (plain text) and return its risk analysis.
     """
@@ -158,27 +143,16 @@ async def analyze_document_text(document: DocumentText): # Removed 'request: Req
 
         # 2. LLM Interaction for Each Chunk
         for i, chunk in enumerate(text_chunks):
-            # Prompt the LLM to identify risks and provide structured output (JSON)
-            # Updated prompt for strict JSON output
-            risk_prompt = (
-                f"Your task is to analyze the following legal text and extract specific information in JSON format ONLY. "
-                f"Do not include any conversational text, explanations, or additional formatting outside the JSON object.\n"
-                f"Analyze for vague language, biased terms, unfair clauses, and potential liabilities. "
-                f"Provide a JSON object with these exact keys:\n"
-                f"1. 'risk_level': (string) 'High', 'Medium', 'Low', or 'Neutral'.\n"
-                f"2. 'simplified_explanation': (string) A concise, plain language explanation of the identified risks or key points.\n"
-                f"3. 'inter_clause_dependencies': (list of objects) A list where each object has 'clause_id' (string) and 'dependency_type' (string, e.g., 'modifies', 'contradicts', 'reinforces'). Provide an empty list if no dependencies.\n\n"
-                f"Legal Text Chunk to Analyze: \"\"\"{chunk}\"\"\""
-                f"\n\nOutput only the JSON object."
-            )
+            # --- USING PROMPT TEMPLATES HERE ---
+            # Select the first prompt for risk identification and format it
+            risk_prompt_template = PROMPT_TEMPLATES["risk_identification"][0]
+            risk_prompt = risk_prompt_template.format(chunk=chunk)
+
             risk_analysis_output = await call_llm_api(risk_prompt, "risk_identification")
 
-            # Prompt the LLM for jargon simplification
-            jargon_prompt = (
-                f"Rephrase the following legal text into plain English, explaining any complex jargon. "
-                f"Provide a real-world example if it helps clarity. Return the rephrased text.\n\n"
-                f"Legal Text Chunk: \"\"\"{chunk}\"\"\""
-            )
+            # Select the first prompt for jargon simplification and format it
+            jargon_prompt_template = PROMPT_TEMPLATES["jargon_simplification"][0]
+            jargon_prompt = jargon_prompt_template.format(chunk=chunk)
             simplified_output = await call_llm_api(jargon_prompt, "jargon_simplification")
 
             # 3. Data Structuring for Frontend
@@ -195,16 +169,15 @@ async def analyze_document_text(document: DocumentText): # Removed 'request: Req
             ))
             overall_summary_parts.append(f"Chunk {i+1} ({risk_level} risk): {simplified_explanation}")
 
-        # Overall document summarization prompt
-        overall_summary_prompt = (
-            f"Provide a concise overall summary of the risks and key points identified in the document. "
-            f"Focus on the most critical aspects. The document's analyzed chunks yielded these key points:\n\n"
-            f"{' '.join(overall_summary_parts)}\n\n"
-            f"Original document start (for context if needed):\n\n\"\"\"{raw_text[:2000]}\"\"\"" # Send a portion or reference if needed
+        # --- USING PROMPT TEMPLATES HERE ---
+        # Select the first prompt for overall summary and format it
+        overall_summary_prompt_template = PROMPT_TEMPLATES["overall_summary"][0]
+        overall_summary_prompt = overall_summary_prompt_template.format(
+            summary_parts=' '.join(overall_summary_parts),
+            raw_text_snippet=raw_text[:2000] # Provide a snippet of original text for context
         )
         overall_summary_output = await call_llm_api(overall_summary_prompt, "overall_summary")
         overall_summary_text = overall_summary_output.get("summary", "Overall summary could not be generated.")
-
 
         return FullAnalysisResponse(
             document_title="Analyzed Legal Document", # You might prompt LLM for this or use filename if uploaded
@@ -214,7 +187,7 @@ async def analyze_document_text(document: DocumentText): # Removed 'request: Req
         )
 
     except HTTPException as e:
-        raise e # Re-raise FastAPI HTTPExceptions
+        raise e
     except Exception as e:
         logger.error(f"An unexpected error occurred during document analysis: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
@@ -245,16 +218,11 @@ async def upload_and_analyze_document(file: UploadFile = File(...)):
         else:
             raise HTTPException(status_code=400, detail="Unsupported file type. Please upload PDF or DOCX.")
 
-        # Now call the existing analysis logic with the extracted text
-        # We'll create a DocumentText object for this.
-        # The 'analyze_document_text' endpoint doesn't directly use the Request object
-        # for its internal logic (only for FastAPI's internal routing/dependency injection).
-        # So we can just pass the DocumentText model.
         document_for_analysis = DocumentText(text=extracted_text)
         return await analyze_document_text(document_for_analysis)
 
     except HTTPException as e:
-        raise e # Re-raise FastAPI HTTPExceptions
+        raise e
     except Exception as e:
         logger.error(f"Error processing uploaded file: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to process file: {e}")
