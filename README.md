@@ -1,4 +1,5 @@
-# 🎨 PixelPalettes: Legal Document Risk Analysis - LeDorian ⚖️
+# 🎨 PixelPalettes: 
+#    Legal Document Risk Analysis - LeDorian ⚖️
 ## 🏨 Team: Hotel California
 ## ✨ Project Overview
 
