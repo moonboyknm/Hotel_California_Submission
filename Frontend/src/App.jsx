@@ -68,7 +68,7 @@ function App() {
 
   return (
     <div className="app-container">
-      <h1>Legal Document AI Analyzer</h1>
+      <h1>LeDorian - Legal Doc Advisor</h1>
 
       <div className="input-section">
         <textarea
