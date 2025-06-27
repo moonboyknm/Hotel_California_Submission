@@ -156,4 +156,123 @@ PROMPT_TEMPLATES = {
             "\"\"\"{{chunk}}\"\"\""
         ),
         (
-            "Extract all clauses related to 'limitation of liability' and 'indemnification' from the following contract. Assess whether these clauses
+            "Extract all clauses related to 'limitation of liability' and 'indemnification' from the following contract. Assess whether these clauses adequately manage risk or if they create an 'oversized risk' for the party assuming obligations.\n"
+            "\"\"\"{{chunk}}\"\"\""
+        ),
+        # --- Prompts for Spotting Compounding Risks ---
+        (
+            "Analyze the following contract excerpt to identify any 'compounding risks' where multiple clauses interact to create an amplified or hidden exposure. Focus on the interplay between liability caps and indemnification, or any other clauses whose combined effect is greater than their individual parts. Describe the interaction and the resulting compounded risk.\n"
+            "\"\"\"{{chunk}}\"\"\""
+        ),
+        (
+            "Given the following clauses from a construction contract, identify any potential 'invisible' or aggregated exposures that arise from their combined effect, even if not explicitly stated. Consider how subcontractor performance, site safety, and regulatory compliance provisions might interact.\n"
+            "\"\"\"{{chunk}}\"\"\""
+        ),
+        (
+            "Examine the provided legal document. Identify any instances where an indemnification clause is not clearly aligned with typical insurance coverage for the indemnitor, potentially creating a 'compounding risk' of uncovered liability.\n"
+            "\"\"\"{{chunk}}\"\"\""
+        ),
+    ],
+    "jargon_simplification": [
+        # Original Prompt 1: Current jargon simplification prompt
+        (
+            "Rephrase the following legal text into plain English, explaining any complex jargon. "
+            "Provide a real-world example if it helps clarity. Return the rephrased text.\n\n"
+            "Legal Text Chunk: \"\"\"{{chunk}}\"\"\""
+        ),
+        # New Prompts from your list - categorized under jargon_simplification
+        (
+            "Rewrite this legal paragraph in plain English, preserving all obligations but removing any jargon:\n"
+            "\"\"\"{{chunk}}\"\"\""
+        ),
+        (
+            "Explain the following terms and risks to a non-lawyer stakeholder, using a friendly, pixel-art analogy.\n"
+            "\"\"\"{{chunk}}\"\"\""
+        ),
+        # --- Prompts for Summarization and Jargon Conversion (Jargon focus) ---
+        (
+            "Convert the following legal paragraph into plain English. Replace all legal jargon with simpler terms, break down any long sentences, and use active voice. Preserve the original meaning and all critical details.\n"
+            "\"\"\"{{chunk}}\"\"\""
+        ),
+        (
+            "Identify all instances of legal jargon in the following text. For each instance, provide a plain language equivalent and explain why the original term is considered jargon.\n"
+            "\"\"\"{{chunk}}\"\"\""
+        ),
+        (
+            "Rephrase the following complex legal sentence to improve its readability for a non-legal audience. Maintain the original meaning and all essential legal implications, but simplify the structure and vocabulary.\n"
+            "\"\"\"{{chunk}}\"\"\""
+        ),
+    ],
+    "overall_summary": [
+        # Original Prompt 1: Current overall summary prompt
+        (
+            "Provide a concise overall summary of the risks and key points identified in the document. "
+            "Focus on the most critical aspects. The document's analyzed chunks yielded these key points:\n\n"
+            "{{summary_parts}}\n\n"
+            "Original document start (for context if needed):\n\n\"\"\"{{raw_text_snippet}}\"\"\""
+        ),
+        # New Prompts from your list - categorized under overall_summary
+        (
+            "Summarize Section 3 (Liability Limitations) in two sentences, highlighting the top three risk points."
+        ),
+        (
+            "Write a one-paragraph executive summary of this policy, weighted toward the highest-risk elements.\n"
+            "{{summary_parts}}\n\n"
+            "Original document start (for context if needed):\n\n\"\"\"{{raw_text_snippet}}\"\"\""
+        ),
+        # --- Prompts for Summarization and Jargon Conversion (Summary focus) ---
+        (
+            "Summarize the key obligations of 'Party A' in the following legal document in no more than three concise sentences. Ensure the summary is in plain language, avoiding legal jargon where possible.\n"
+            "{{summary_parts}}\n\n"
+            "Original document start (for context if needed):\n\n\"\"\"{{raw_text_snippet}}\"\"\""
+        ),
+        (
+            "Given the following legal section, provide an extractive summary of the most critical sentences related to 'termination rights'. The summary should only contain sentences directly from the original text.\n"
+            "{{summary_parts}}\n\n"
+            "Original document start (for context if needed):\n\n\"\"\"{{raw_text_snippet}}\"\"\""
+        ),
+    ],
+    "detailed_analysis": [
+        (
+            "Your task is to perform a comprehensive analysis of the provided legal text chunk. "
+            "Identify and categorize various aspects including risk, jargon, inter-clause dependencies, "
+            "vague terms, biased language, red flags, compounding risks, and structural complexities. "
+            "Output your findings as a single JSON object. DO NOT include any conversational text, "
+            "explanations, or additional formatting outside the JSON object.\n\n"
+            "The JSON object must have the following primary keys. If a category has no findings, provide an empty list or appropriate default:\n"
+            "{\n"
+            "  \"risk_level\": \"High\" | \"Medium\" | \"Low\" | \"Neutral\",\n"
+            "  \"simplified_explanation\": \"A concise, plain language summary of the chunk's main points and any identified risks or key obligations.\",\n"
+            "  \"inter_clause_dependencies\": [\n"
+            "    {\"clause_id\": \"[reference ID if applicable]\", \"dependency_type\": \"reinforces\" | \"modifies\" | \"contradicts\" | \"sets_condition_for\", \"description\": \"Explain the nature of the dependency.\"}\n"
+            "  ],\n"
+            "  \"vague_terms\": [\n"
+            "    {\"term\": \"[vague term/phrase]\", \"explanation\": \"Why this term is vague and its potential interpretations.\"}\n"
+            "  ],\n"
+            "  \"biased_language\": [\n"
+            "    {\"phrase\": \"[biased phrase]\", \"suggestion\": \"[gender-neutral or unbiased alternative]\", \"reason\": \"Explanation of bias.\"}\n"
+            "  ],\n"
+            "  \"red_flags\": [\n"
+            "    {\"type\": \"hidden_obligation\" | \"loophole\" | \"disproportionate_risk\" | \"unclear_carveout\", \"description\": \"Detailed explanation of the red flag and its implications.\"}\n"
+            "  ],\n"
+            "  \"compounding_risks\": [\n"
+            "    {\"description\": \"Explanation of how multiple clauses interact to create amplified risk.\", \"clauses_involved\": [\"[clause_ref1]\", \"[clause_ref2]\"]}\n"
+            "  ],\n"
+            "  \"structural_elements\": [\n"
+            "    {\"type\": \"preamble\" | \"savings_clause\" | \"conditional_logic\" | \"nested_dependency\" | \"excessive_cross_references\" | \"redundant_phrasing\" | \"overly_detailed_definitions\", \"description\": \"Explanation of the structural element and its impact on clarity/complexity.\"}\n"
+            "  ],\n"
+            "  \"external_references\": [\n"
+            "    {\"reference\": \"[statute/regulation/document]\", \"status\": \"clear\" | \"ambiguous\" | \"outdated\", \"context\": \"Where it's referenced and its significance.\"}\n"
+            "  ],\n"
+            "  \"exception_clauses\": [\n"
+            "    {\"clause_text\": \"[exception clause snippet]\", \"assessment\": \"Does it create a loophole? Explain.\"}\n"
+            "  ],\n"
+            "  \"jurisdictional_risks\": [\n"
+            "    {\"clause_text\": \"[clause snippet]\", \"jurisdictions\": [\"California\", \"Delaware\"], \"potential_divergence\": \"Explanation of how interpretation might differ.\"}\n"
+            "  ]\n"
+            "}\n\n"
+            "Legal Text Chunk to Analyze: \"\"\"{{chunk}}\"\"\""
+            "\n\nOutput only the JSON object."
+        ),
+    ],
+}
