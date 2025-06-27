@@ -3,6 +3,10 @@ import React, { useState, useCallback } from 'react';
 import axios from 'axios';
 import './App.css'; // Import the CSS file
 
+// --- IMPORT YOUR PIXEL ART IMAGE HERE ---
+import scalesPixel from './assets/Scales.png'; // Updated to use your Scales.png file
+// -----------------------------------------
+
 function App() {
   const [inputText, setInputText] = useState('');
   const [selectedPrompt, setSelectedPrompt] = useState('detailed_analysis'); // Default prompt type
@@ -69,6 +73,7 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Removed images from top of the title */}
       <h1>LeDorian - The Legal Doc Advisor</h1>
 
       <div className="input-section">
@@ -102,13 +107,13 @@ function App() {
 
       <div className="file-upload-section">
         <input type="file" onChange={handleFileChange} accept=".pdf,.docx" className="file-input" />
-        {selectedFile && <span className="file-name-display">{selectedFile.name}</span>} {/* Display selected file name */}
+        {selectedFile && <span className="file-name-display">{selectedFile.name}</span>}
         <button onClick={handleFileUpload} disabled={loading || !selectedFile} className="upload-button">
           {loading ? (
-            <>Uploading... <span className="spinner"></span></> // Spinner for upload button
-          ) : (
-            'Upload & Analyze Document'
-          )}
+            <>Uploading... <span className="spinner"></span></>
+            ) : (
+              'Upload & Analyze Document'
+            )}
         </button>
       </div>
 
@@ -126,6 +131,8 @@ function App() {
             <li><strong>Jargon Simplification:</strong> Understand complex legal terms in plain language.</li>
             <li><strong>Overall Summary:</strong> Get a concise overview of the document's key points.</li>
           </ul>
+          {/* IMAGE: Only one image remains, at the bottom within the initial message */}
+          <img src={scalesPixel} alt="Pixel Art Scales" className="decorative-pixel-art decorative-pixel-art-initial-message" />
         </div>
       )}
 

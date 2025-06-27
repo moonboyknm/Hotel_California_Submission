@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # --- Configuration ---
 LLM_API_KEY = os.getenv("LLM_API_KEY", "YOUR_LLM_API_KEY_HERE")
-LLM_MODEL_NAME = "gemini-1.5-flash"
+LLM_MODEL_NAME = "gemini-2.5-flash"
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
