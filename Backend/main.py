@@ -157,12 +157,15 @@ async def analyze_document_text(document: DocumentText): # Removed 'request: Req
         for i, chunk in enumerate(text_chunks):
             # Prompt the LLM to identify risks and provide structured output (JSON)
             risk_prompt = (
-                f"Analyze the following legal text for vague language, biased terms, unfair clauses, "
-                f"and potential liabilities. Based on your analysis, provide a JSON object with the following keys:\n"
-                f"- 'risk_level': a string, either 'High', 'Medium', 'Low', or 'Neutral'.\n"
-                f"- 'simplified_explanation': a concise, plain language explanation of the identified risks or key points.\n"
-                f"- 'inter_clause_dependencies': a list of objects, where each object has 'clause_id' (string) and 'dependency_type' (string, e.g., 'modifies', 'contradicts', 'reinforces'). If no dependencies, an empty list.\n\n"
-                f"Legal Text Chunk: \"\"\"{chunk}\"\"\""
+                f"Your task is to analyze the following legal text and extract specific information in JSON format ONLY. "
+                f"Do not include any conversational text, explanations, or additional formatting outside the JSON object.\n"
+                f"Analyze for vague language, biased terms, unfair clauses, and potential liabilities. "
+                f"Provide a JSON object with these exact keys:\n"
+                f"1. 'risk_level': (string) 'High', 'Medium', 'Low', or 'Neutral'.\n"
+                f"2. 'simplified_explanation': (string) A concise, plain language explanation of the identified risks or key points.\n"
+                f"3. 'inter_clause_dependencies': (list of objects) A list where each object has 'clause_id' (string) and 'dependency_type' (string, e.g., 'modifies', 'contradicts', 'reinforces'). Provide an empty list if no dependencies.\n\n"
+                f"Legal Text Chunk to Analyze: \"\"\"{chunk}\"\"\""
+                f"\n\nOutput only the JSON object."
             )
             risk_analysis_output = await call_llm_api(risk_prompt, "risk_identification")
 
