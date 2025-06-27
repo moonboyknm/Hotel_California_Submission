@@ -1,9 +1,11 @@
-/* Frontend/src/App.css */
+/* Frontend/src/App.css - Retro Pixel Art Theme */
 
 /* --- Google Fonts Import --- */
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Roboto:wght@300;400;700&display=swap');
+/* 'Press Start 2P' for headings - very pixelated, might be harder to read for long text */
+/* 'VT323' for body text - a more readable retro monospaced font */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 
-/* --- CSS Variables for Theme --- */
+/* --- CSS Variables for Theme (keeping your existing color scheme as requested) --- */
 :root {
     /* Backgrounds */
     --color-bg-dark: #1a1a1a; /* Overall body background */
@@ -27,24 +29,18 @@
     --color-tertiary-green: #90EE90; /* Sub-section titles (h3) */
     --color-accent-blue: #ADD8E6; /* Result item titles (h3 within .result-item) */
 
-    /* Border Colors */
+    /* Border Colors - adjusted for pixelated feel */
     --color-border-dark: #3a3a3a;
     --color-border-mid: #444;
     --color-border-light: #555;
     --color-border-card: #4a4a4a; /* Input sections, result items */
+    --color-pixel-border: #000; /* Distinct dark border for pixel art feel */
+    --color-pixel-shadow: #000; /* For sharp pixelated shadows */
 
     /* Status Colors */
     --color-status-error: #dc3545; /* Red */
     --color-status-warning: #ffc107; /* Yellow */
     --color-status-success: #28a745; /* Green */
-
-    /* Shadows */
-    --shadow-strong: 0 8px 20px rgba(0, 0, 0, 0.4);
-    --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.3);
-    --shadow-subtle: 0 2px 5px rgba(0, 0, 0, 0.3);
-    --shadow-inset-dark: inset 0 2px 5px rgba(0, 0, 0, 0.3);
-    --shadow-inset-light: inset 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-inset-list: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 
     /* Button disabled color */
     --color-button-disabled: #666;
@@ -52,83 +48,95 @@
 
 /* General Body and Container Styling */
 body {
-    font-family: 'Roboto', sans-serif; /* Applied Google Font */
+    font-family: 'VT323', monospace; /* Pixel art body font */
     background-color: var(--color-bg-dark);
+    /* Adding a subtle pixel pattern to the background */
+    background-image:
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 10px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 10px);
     color: var(--color-text-light);
     margin: 0;
     padding: 0;
-    line-height: 1.7; /* Increased line-height for readability */
+    line-height: 1.5; /* Adjusted for pixel font readability */
     display: flex;
     justify-content: center;
     min-height: 100vh;
     box-sizing: border-box;
+    text-rendering: optimizeLegibility; /* Improves font rendering */
+    -webkit-font-smoothing: crisp-edges; /* For sharper pixel fonts on WebKit */
+    image-rendering: pixelated; /* Ensures any scaled images/canvases appear pixelated */
 }
 
 .app-container {
     background-color: var(--color-bg-mid);
     padding: 30px;
-    border-radius: 12px;
-    box-shadow: var(--shadow-strong);
+    border-radius: 0; /* No rounded corners for pixel art */
+    box-shadow: 6px 6px 0px var(--color-pixel-shadow); /* Blocky shadow */
     max-width: 1000px;
     width: 95%;
     margin: 30px auto;
-    border: 1px solid var(--color-border-mid);
+    border: 2px solid var(--color-pixel-border); /* Chunky border */
     box-sizing: border-box;
 }
 
 h1 {
-    font-family: 'Oswald', sans-serif; /* Applied Google Font */
+    font-family: 'Press Start 2P', cursive; /* Pixel art heading font */
     color: var(--color-primary-green);
     text-align: center;
     margin-bottom: 30px;
-    font-size: 2.8em; /* Slightly larger */
-    font-weight: 700;
-    letter-spacing: 0.05em; /* Added letter spacing */
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    font-size: 2.5em; /* Adjusted for pixel font readability */
+    font-weight: normal; /* Pixel fonts often don't have bold variants */
+    letter-spacing: 0.1em; /* Increased letter spacing for pixel feel */
+    text-shadow: 4px 4px 0px var(--color-pixel-shadow); /* Blocky text shadow */
+    line-height: 1.2;
 }
 
 h2 {
-    font-family: 'Oswald', sans-serif; /* Applied Google Font */
+    font-family: 'Press Start 2P', cursive; /* Pixel art heading font */
     color: var(--color-secondary-green);
-    border-bottom: 2px solid var(--color-border-dark);
+    border-bottom: 2px solid var(--color-pixel-border); /* Pixelated border */
     padding-bottom: 10px;
     margin-top: 30px;
     margin-bottom: 20px;
-    font-size: 1.8em;
-    font-weight: 600;
+    font-size: 1.5em; /* Adjusted for pixel font readability */
+    font-weight: normal;
+    letter-spacing: 0.08em;
+    text-shadow: 2px 2px 0px var(--color-pixel-shadow);
 }
 
 h3 {
-    font-family: 'Oswald', sans-serif; /* Applied Google Font */
+    font-family: 'Press Start 2P', cursive; /* Pixel art heading font */
     color: var(--color-tertiary-green);
     margin-top: 20px;
     margin-bottom: 10px;
-    font-size: 1.3em;
-    font-weight: 500;
+    font-size: 1.1em; /* Adjusted for pixel font readability */
+    font-weight: normal;
+    letter-spacing: 0.05em;
+    text-shadow: 1px 1px 0px var(--color-pixel-shadow);
 }
 
 /* Input Section Styling */
-.input-section, .file-upload-section {
+.input-section, .file-upload-section, .results-section, .initial-message {
     background-color: var(--color-bg-section);
     padding: 25px;
-    border-radius: 10px;
+    border-radius: 0; /* No rounded corners */
     margin-bottom: 25px;
-    border: 1px solid var(--color-border-card);
-    box-shadow: var(--shadow-inset-dark);
+    border: 2px solid var(--color-pixel-border); /* Chunky border */
+    box-shadow: 4px 4px 0px var(--color-pixel-shadow); /* Blocky shadow */
 }
 
 .text-input {
     width: calc(100% - 20px);
     padding: 15px;
     margin-bottom: 20px;
-    border: 1px solid var(--color-border-light);
-    border-radius: 8px;
+    border: 2px solid var(--color-border-light); /* Chunky border */
+    border-radius: 0; /* No rounded corners */
     background-color: var(--color-bg-input);
     color: var(--color-text-light);
     font-size: 1em;
     resize: vertical;
     min-height: 150px;
-    box-shadow: var(--shadow-inset-light);
+    box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.4); /* Inset pixel shadow */
 }
 
 .text-input::placeholder {
@@ -144,13 +152,13 @@ h3 {
 
 .prompt-select, .file-input {
     padding: 12px 15px;
-    border: 1px solid var(--color-border-light);
-    border-radius: 8px;
+    border: 2px solid var(--color-border-light); /* Chunky border */
+    border-radius: 0; /* No rounded corners */
     background-color: var(--color-bg-input);
     color: var(--color-text-light);
     font-size: 1em;
     cursor: pointer;
-    box-shadow: var(--shadow-inset-light);
+    box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.4); /* Inset pixel shadow */
 }
 
 .prompt-select option {
@@ -162,74 +170,91 @@ h3 {
     background-color: var(--color-primary-green);
     color: white;
     padding: 12px 25px;
-    border: none;
-    border-radius: 8px;
+    border: 2px solid var(--color-pixel-border); /* Chunky border */
+    border-radius: 0; /* No rounded corners */
     cursor: pointer;
-    font-size: 1em;
-    font-weight: 600;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    box-shadow: var(--shadow-medium);
+    font-family: 'Press Start 2P', cursive; /* Pixel button text */
+    font-size: 0.8em; /* Adjusted for pixel font */
+    font-weight: normal;
+    letter-spacing: 0.05em;
+    transition: background-color 0.1s ease, transform 0.1s ease, box-shadow 0.1s ease;
+    box-shadow: 4px 4px 0px var(--color-pixel-shadow); /* Blocky shadow */
 }
 
 .analyze-button:hover, .upload-button:hover {
     background-color: #45a049; /* Darker green on hover */
-    transform: translateY(-2px);
+    transform: translate(2px, 2px); /* Shift for pressed look */
+    box-shadow: 2px 2px 0px var(--color-pixel-shadow); /* Smaller shadow when pressed */
 }
 
 .analyze-button:disabled, .upload-button:disabled {
     background-color: var(--color-button-disabled);
     cursor: not-allowed;
-    box-shadow: none;
+    box-shadow: 2px 2px 0px var(--color-pixel-shadow); /* Subtle shadow for disabled */
     transform: none;
+    opacity: 0.7;
 }
+
+/* File Name Display (new style for pixel art) */
+.file-name-display {
+    font-family: 'VT323', monospace;
+    font-size: 0.9em;
+    background-color: var(--color-bg-list-item);
+    padding: 8px 12px;
+    border: 1px solid var(--color-border-dark);
+    margin-left: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    display: inline-block;
+    vertical-align: middle;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.3);
+}
+
 
 /* Error Message Styling */
 .error-message {
     background-color: var(--color-status-error);
     color: white;
     padding: 15px;
-    border-radius: 8px;
+    border-radius: 0; /* No rounded corners */
     margin-bottom: 25px;
     text-align: center;
     font-weight: bold;
-    box-shadow: var(--shadow-medium);
+    box-shadow: 4px 4px 0px var(--color-pixel-shadow); /* Blocky shadow */
+    border: 2px solid var(--color-pixel-border);
 }
 
 /* Results Section Styling */
-.results-section {
-    background-color: var(--color-bg-section);
-    padding: 25px;
-    border-radius: 10px;
-    border: 1px solid var(--color-border-card);
-    box-shadow: var(--shadow-inset-dark);
-}
-
 .analysis-results-box {
-    /* This class is added to the results-section div directly in App.jsx */
-    /* Further styling for the overall results container if needed */
+    /* Styles are mostly inherited from .input-section, .file-upload-section */
 }
 
 .result-item {
     background-color: var(--color-bg-card);
     padding: 15px 20px;
-    border-radius: 8px;
+    border-radius: 0; /* No rounded corners */
     margin-bottom: 15px;
-    border: 1px solid var(--color-border-dark);
-    box-shadow: var(--shadow-subtle);
+    border: 2px solid var(--color-pixel-border); /* Chunky border */
+    box-shadow: 4px 4px 0px var(--color-pixel-shadow); /* Blocky shadow */
 }
 
 .result-item h3 {
     margin-top: 0;
     margin-bottom: 10px;
     padding-bottom: 5px;
-    border-bottom: 1px solid var(--color-border-card);
+    border-bottom: 2px solid var(--color-pixel-border); /* Pixelated border */
     color: var(--color-accent-blue);
+    font-size: 1.0em; /* Adjusted for pixel font readability */
+    text-shadow: 1px 1px 0px var(--color-pixel-shadow);
 }
 
+/* --- CHANGES START HERE --- */
 .result-item p {
     margin-bottom: 10px;
     color: var(--color-text-mid);
-    font-size: 1.05em; /* Slightly larger for readability */
+    font-size: 1.15em; /* Increased for readability */
 }
 
 .result-item ul {
@@ -241,22 +266,26 @@ h3 {
 .result-item li {
     background-color: var(--color-bg-list-item);
     padding: 10px 15px;
-    border-radius: 6px;
+    border-radius: 0; /* No rounded corners */
     margin-bottom: 8px;
-    border: 1px solid var(--color-border-card);
-    font-size: 0.9em;
+    border: 1px solid var(--color-border-dark); /* Thinner border for list items */
+    font-size: 1.05em; /* Increased for readability */
     color: var(--color-text-list-item);
-    box-shadow: var(--shadow-inset-list);
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.2); /* Subtle pixel shadow */
 }
+/* --- CHANGES END HERE --- */
 
 /* Specific styling for Risk Level */
 .risk-level {
-    font-weight: bold;
+    font-family: 'Press Start 2P', cursive;
+    font-weight: normal;
     padding: 4px 10px;
-    border-radius: 5px;
+    border-radius: 0; /* No rounded corners */
     display: inline-block;
     min-width: 80px;
     text-align: center;
+    border: 1px solid var(--color-pixel-border); /* Added border */
+    box-shadow: 2px 2px 0px var(--color-pixel-shadow); /* Blocky shadow */
 }
 
 .risk-level.high {
@@ -278,28 +307,30 @@ h3 {
 pre {
     background-color: var(--color-bg-pre);
     padding: 15px;
-    border-radius: 8px;
+    border-radius: 0; /* No rounded corners */
     overflow-x: auto;
     white-space: pre-wrap;
     word-wrap: break-word;
-    border: 1px solid var(--color-border-card);
-    box-shadow: var(--shadow-inset-light);
+    border: 2px solid var(--color-pixel-border); /* Chunky border */
+    box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.4);
 }
 
-/* --- Loading Spinner Animation --- */
+/* --- Loading Spinner Animation (pixelated version) --- */
 .spinner {
-    border: 4px solid rgba(255, 255, 255, 0.3); /* Light border */
-    border-top: 4px solid var(--color-primary-green); /* Primary green top border */
-    border-radius: 50%;
+    border: 4px solid transparent; /* Transparent border */
+    border-top: 4px solid var(--color-primary-green); /* Top border for spin effect */
+    border-right: 4px solid var(--color-primary-green); /* Right border for spin effect */
+    border-radius: 0; /* Make it a square for pixel effect */
     width: 20px;
     height: 20px;
-    animation: spin 1s linear infinite;
+    animation: pixel-spin 1s steps(8) infinite; /* Steps for pixelated rotation */
     display: inline-block;
     vertical-align: middle;
     margin-left: 10px;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.3); /* Small shadow */
 }
 
-@keyframes spin {
+@keyframes pixel-spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
@@ -310,19 +341,41 @@ pre {
     .app-container {
         padding: 20px;
         margin: 20px auto;
+        box-shadow: 4px 4px 0px var(--color-pixel-shadow); /* Smaller shadow on mobile */
     }
 
     h1 {
-        font-size: 2em;
+        font-size: 1.8em;
+        text-shadow: 3px 3px 0px var(--color-pixel-shadow);
     }
+
+    h2 {
+        font-size: 1.3em;
+        text-shadow: 1px 1px 0px var(--color-pixel-shadow);
+    }
+
+    /* --- RESPONSIVE CHANGES START HERE --- */
+    .result-item p {
+        font-size: 1em; /* Adjusting for smaller screens if 1.15em is too big */
+    }
+
+    .result-item li {
+        font-size: 0.9em; /* Adjusting for smaller screens if 1.05em is too big */
+    }
+    /* --- RESPONSIVE CHANGES END HERE --- */
 
     .controls {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .prompt-select, .analyze-button, .upload-button {
+    .prompt-select, .analyze-button, .upload-button, .file-name-display {
         width: 100%;
         margin-bottom: 10px;
+        margin-left: 0; /* Remove left margin for file name display on mobile */
+    }
+
+    .analyze-button, .upload-button {
+        font-size: 0.9em; /* Slightly larger button text on mobile */
     }
 }

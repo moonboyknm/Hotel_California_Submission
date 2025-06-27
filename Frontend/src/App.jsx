@@ -1,5 +1,5 @@
 // Frontend/src/App.jsx
-import React, { useState, useCallback } from 'react'; // Added useCallback
+import React, { useState, useCallback } from 'react';
 import axios from 'axios';
 import './App.css'; // Import the CSS file
 
@@ -14,7 +14,7 @@ function App() {
   // IMPORTANT: Ensure this URL matches your FastAPI server's address and port
   const API_BASE_URL = 'http://127.0.0.1:8000';
 
-  const handleTextAnalysis = useCallback(async () => { // Wrapped in useCallback
+  const handleTextAnalysis = useCallback(async () => {
     setError(null);
     setLoading(true);
     setAnalysisResult(null); // Clear previous results
@@ -31,13 +31,14 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [inputText, selectedPrompt]); // Dependencies for useCallback
+  }, [inputText, selectedPrompt]);
 
-  const handleFileChange = useCallback((event) => { // Wrapped in useCallback
+  const handleFileChange = useCallback((event) => {
     setSelectedFile(event.target.files[0]);
+    setError(null); // Clear any previous file-related errors
   }, []);
 
-  const handleFileUpload = useCallback(async () => { // Wrapped in useCallback
+  const handleFileUpload = useCallback(async () => {
     if (!selectedFile) {
       setError('Please select a file to upload.');
       return;
@@ -64,11 +65,11 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [selectedFile]); // Dependencies for useCallback
+  }, [selectedFile]);
 
   return (
     <div className="app-container">
-      <h1>LeDorian - Legal Doc Advisor</h1>
+      <h1>LeDorian - The Legal Doc Advisor</h1>
 
       <div className="input-section">
         <textarea
@@ -90,22 +91,46 @@ function App() {
             <option value="overall_summary">Overall Summary</option>
           </select>
           <button onClick={handleTextAnalysis} disabled={loading || !inputText.trim()} className="analyze-button">
-            {loading ? 'Analyzing...' : 'Analyze Text'}
+            {loading ? (
+              <>Analyzing... <span className="spinner"></span></>
+            ) : (
+              'Analyze Text'
+            )}
           </button>
         </div>
       </div>
 
       <div className="file-upload-section">
         <input type="file" onChange={handleFileChange} accept=".pdf,.docx" className="file-input" />
+        {selectedFile && <span className="file-name-display">{selectedFile.name}</span>} {/* Display selected file name */}
         <button onClick={handleFileUpload} disabled={loading || !selectedFile} className="upload-button">
-          {loading ? 'Uploading...' : 'Upload & Analyze Document'}
+          {loading ? (
+            <>Uploading... <span className="spinner"></span></> // Spinner for upload button
+          ) : (
+            'Upload & Analyze Document'
+          )}
         </button>
       </div>
 
       {error && <div className="error-message">Error: {error}</div>}
 
+      {/* Empty State / Getting Started Message */}
+      {!loading && !analysisResult && !error && (
+        <div className="initial-message">
+          <h2>Welcome to LeDorian!</h2>
+          <p>Paste your legal document text above or upload a PDF/DOCX file to begin the analysis.</p>
+          <p>Choose a prompt type to get started:</p>
+          <ul>
+            <li><strong>Risk Identification:</strong> Quickly identify potential risks.</li>
+            <li><strong>Detailed Analysis:</strong> Get a comprehensive breakdown of the document.</li>
+            <li><strong>Jargon Simplification:</strong> Understand complex legal terms in plain language.</li>
+            <li><strong>Overall Summary:</strong> Get a concise overview of the document's key points.</li>
+          </ul>
+        </div>
+      )}
+
       {analysisResult && (
-        <div className="results-section analysis-results-box"> {/* Use a class for styling the results container */}
+        <div className="results-section analysis-results-box">
           <h2>Analysis Results:</h2>
 
           {/* Always display Risk Level if available */}
