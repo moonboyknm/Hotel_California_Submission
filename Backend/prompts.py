@@ -22,8 +22,8 @@ PROMPT_TEMPLATES = {
         ),
         (
             "Given Clause A and Clause B, explain how they depend on or amplify each other’s risks:\n\n"
-            "* Clause A: \"\"\"{{clause_a_text}}\"\"\"\n" # Note: requires specific input formatting in main.py
-            "* Clause B: \"\"\"{{clause_b_text}}\"\"\"" # Note: requires specific input formatting in main.py
+            "* Clause A: \"\"\"{{clause_a_text}}\"\"\"\n"
+            "* Clause B: \"\"\"{{clause_b_text}}\"\"\""
         ),
         (
             "Scan this section (Clauses 1.1–1.5) and list any ‘red-flag’ clauses that could impose hidden obligations or carve-outs:\n"
@@ -35,7 +35,7 @@ PROMPT_TEMPLATES = {
         ),
         (
             "For each numbered clause below, output a JSON mapping to pixel-grid colors (Green/Yellow/Red) based on risk:\n\n"
-            "\"\"\"{{chunk}}\"\"\"" # The LLM would need to parse numbered clauses from this chunk
+            "\"\"\"{{chunk}}\"\"\""
         ),
         (
             "Produce a list of directed edges showing which clauses reference or depend upon which others (e.g., “Clause 2 → Clause 5”).\n"
@@ -47,12 +47,12 @@ PROMPT_TEMPLATES = {
         ),
         (
             "Compare the risk profile of Clause X vs. Clause Y, and state which is riskier and why.\n\n"
-            "* Clause X: \"\"\"{{clause_x_text}}\"\"\"\n" # Note: requires specific input formatting in main.py
-            "* Clause Y: \"\"\"{{clause_y_text}}\"\"\"" # Note: requires specific input formatting in main.py
+            "* Clause X: \"\"\"{{clause_x_text}}\"\"\"\n"
+            "* Clause Y: \"\"\"{{clause_y_text}}\"\"\""
         ),
         (
             "Given these five clauses with individual risk scores, generate a 2×3 pixel grid heatmap layout (with one blank pixel), labeling each pixel by clause number and color."
-            "\"\"\"{{chunk}}\"\"\"" # This implies advanced LLM output for visualization.
+            "\"\"\"{{chunk}}\"\"\""
         ),
         (
             "List every external statute or regulation this clause refers to, and flag if the references are ambiguous or outdated.\n"
@@ -68,7 +68,7 @@ PROMPT_TEMPLATES = {
         ),
         (
             "This clause refers to Clause 12, which itself refers to Clause 3. Unpack and explain the full chain of obligations:\n"
-            "\"\"\"{{clause_12_text}}\"\"\" plus relevant text." # Note: requires specific input formatting in main.py
+            "\"\"\"{{clause_12_text}}\"\"\" plus relevant text."
         ),
         (
             "Check this contract excerpt for contradictory clauses, and detail any conflicts found.\n"
@@ -156,80 +156,4 @@ PROMPT_TEMPLATES = {
             "\"\"\"{{chunk}}\"\"\""
         ),
         (
-            "Extract all clauses related to 'limitation of liability' and 'indemnification' from the following contract. Assess whether these clauses adequately manage risk or if they create an 'oversized risk' for the party assuming obligations.\n"
-            "\"\"\"{{chunk}}\"\"\""
-        ),
-        # --- Prompts for Spotting Compounding Risks ---
-        (
-            "Analyze the following contract excerpt to identify any 'compounding risks' where multiple clauses interact to create an amplified or hidden exposure. Focus on the interplay between liability caps and indemnification, or any other clauses whose combined effect is greater than their individual parts. Describe the interaction and the resulting compounded risk.\n"
-            "\"\"\"{{chunk}}\"\"\""
-        ),
-        (
-            "Given the following clauses from a construction contract, identify any potential 'invisible' or aggregated exposures that arise from their combined effect, even if not explicitly stated. Consider how subcontractor performance, site safety, and regulatory compliance provisions might interact.\n"
-            "\"\"\"{{chunk}}\"\"\""
-        ),
-        (
-            "Examine the provided legal document. Identify any instances where an indemnification clause is not clearly aligned with typical insurance coverage for the indemnitor, potentially creating a 'compounding risk' of uncovered liability.\n"
-            "\"\"\"{{chunk}}\"\"\""
-        ),
-    ],
-    "jargon_simplification": [
-        # Original Prompt 1: Current jargon simplification prompt
-        (
-            "Rephrase the following legal text into plain English, explaining any complex jargon. "
-            "Provide a real-world example if it helps clarity. Return the rephrased text.\n\n"
-            "Legal Text Chunk: \"\"\"{{chunk}}\"\"\""
-        ),
-        # New Prompts from your list - categorized under jargon_simplification
-        (
-            "Rewrite this legal paragraph in plain English, preserving all obligations but removing any jargon:\n"
-            "\"\"\"{{chunk}}\"\"\""
-        ),
-        (
-            "Explain the following terms and risks to a non-lawyer stakeholder, using a friendly, pixel-art analogy.\n"
-            "\"\"\"{{chunk}}\"\"\""
-        ),
-        # --- Prompts for Summarization and Jargon Conversion (Jargon focus) ---
-        (
-            "Convert the following legal paragraph into plain English. Replace all legal jargon with simpler terms, break down any long sentences, and use active voice. Preserve the original meaning and all critical details.\n"
-            "\"\"\"{{chunk}}\"\"\""
-        ),
-        (
-            "Identify all instances of legal jargon in the following text. For each instance, provide a plain language equivalent and explain why the original term is considered jargon.\n"
-            "\"\"\"{{chunk}}\"\"\""
-        ),
-        (
-            "Rephrase the following complex legal sentence to improve its readability for a non-legal audience. Maintain the original meaning and all essential legal implications, but simplify the structure and vocabulary.\n"
-            "\"\"\"{{chunk}}\"\"\""
-        ),
-    ],
-    "overall_summary": [
-        # Original Prompt 1: Current overall summary prompt
-        (
-            "Provide a concise overall summary of the risks and key points identified in the document. "
-            "Focus on the most critical aspects. The document's analyzed chunks yielded these key points:\n\n"
-            "{{summary_parts}}\n\n"
-            "Original document start (for context if needed):\n\n\"\"\"{{raw_text_snippet}}\"\"\""
-        ),
-        # New Prompts from your list - categorized under overall_summary
-        (
-            "Summarize Section 3 (Liability Limitations) in two sentences, highlighting the top three risk points." # Note: assumes LLM knows "Section 3" from context or it needs to be explicitly passed.
-        ),
-        (
-            "Write a one-paragraph executive summary of this policy, weighted toward the highest-risk elements.\n"
-            "{{summary_parts}}\n\n"
-            "Original document start (for context if needed):\n\n\"\"\"{{raw_text_snippet}}\"\"\""
-        ),
-        # --- Prompts for Summarization and Jargon Conversion (Summary focus) ---
-        (
-            "Summarize the key obligations of 'Party A' in the following legal document in no more than three concise sentences. Ensure the summary is in plain language, avoiding legal jargon where possible.\n"
-            "{{summary_parts}}\n\n"
-            "Original document start (for context if needed):\n\n\"\"\"{{raw_text_snippet}}\"\"\""
-        ),
-        (
-            "Given the following legal section, provide an extractive summary of the most critical sentences related to 'termination rights'. The summary should only contain sentences directly from the original text.\n"
-            "{{summary_parts}}\n\n"
-            "Original document start (for context if needed):\n\n\"\"\"{{raw_text_snippet}}\"\"\""
-        ),
-    ]
-}
+            "Extract all clauses related to 'limitation of liability' and 'indemnification' from the following contract. Assess whether these clauses
