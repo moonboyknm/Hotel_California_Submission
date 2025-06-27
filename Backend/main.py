@@ -1,14 +1,16 @@
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError # Import ValidationError
 import re
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union # Import Union
 import logging
-import io
+import io # Added for file handling
 import google.generativeai as genai
-import json
+import json # JSON responses from LLM
+from PyPDF2 import PdfReader # For PDF processing
+import docx # For DOCX processing
 
-# Import PROMPT_TEMPLATES from the prompts.py file
+# Import PROMPT_TEMPLATES from the new prompts.py file
 from prompts import PROMPT_TEMPLATES
 
 # --- Configure Logging ---
@@ -27,186 +29,136 @@ app = FastAPI(
 )
 
 # --- Models for Request and Response ---
+
+# UPDATED: DocumentText now includes prompt_type
 class DocumentText(BaseModel):
     text: str
+    prompt_type: str = "risk_identification" # Default value
 
-class AnalysisResult(BaseModel):
-    original_text_snippet: str
-    risk_level: str # e.g., "high", "medium", "low", "neutral"
-    color_code: str # e.g., "#FF0000" for high, "#FFFF00" for medium
+# This model matches the original 'risk_identification' output structure
+class RiskAnalysisResult(BaseModel):
+    risk_level: str
     simplified_explanation: str
-    inter_clause_dependencies: List[Dict[str, str]] # e.g., [{"clause_id": "clause_X", "dependency_type": "reinforces"}]
-    # New field to capture all detailed analysis results
-    detailed_analysis_results: Dict[str, Any] # Flexible dictionary for diverse insights
+    inter_clause_dependencies: List[Dict[str, str]]
 
-class FullAnalysisResponse(BaseModel):
-    document_title: str # You might extract this or provide a default
-    total_chunks: int
-    analysis_chunks: List[AnalysisResult]
-    overall_summary: str
+# NEW: This model matches the 'detailed_analysis' output structure
+class DetailedAnalysisResult(BaseModel):
+    risk_level: str
+    simplified_explanation: str
+    inter_clause_dependencies: List[Dict[str, str]]
+    vague_terms: List[Dict[str, str]]
+    biased_language: List[Dict[str, str]]
+    red_flags: List[Dict[str, str]]
+    compounding_risks: List[Dict[str, Any]]
+    structural_elements: List[Dict[str, str]]
+    external_references: List[Dict[str, str]]
+    exception_clauses: List[Dict[str, str]]
+    jurisdictional_risks: List[Dict[str, Any]] # Adjusted to Any for internal dict values
 
-# --- Helper Functions ---
+# The main response model for /analyze-document-text endpoint will be Dict[str, Any]
+# to allow for dynamic JSON outputs based on prompt_type.
+# Specific validation will happen inside the endpoint logic.
+# You could also use Union[RiskAnalysisResult, DetailedAnalysisResult, ... etc.]
+# if the output structures are somewhat distinct but manageable within a single union.
 
-def preprocess_text(text: str) -> str:
-    """Removes irrelevant elements and standardizes text format."""
-    # Remove excessive whitespace, newlines, tabs
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
+# --- LLM and Prompt Configuration ---
+genai.configure(api_key=LLM_API_KEY)
+model = genai.GenerativeModel(LLM_MODEL_NAME)
 
-def segment_text(text: str, max_chunk_size: int = 500) -> List[str]:
+# --- Helper Function for LLM Interaction ---
+async def generate_llm_response(prompt_template_str: str, chunk: str, **kwargs) -> str:
     """
-    Segments the document into logical chunks based on max_chunk_size.
-    Prioritizes sentence boundaries.
+    Generates a response from the LLM based on a prompt template and a text chunk.
+    Handles placeholder replacement and ensures JSON response mime type.
     """
-    sentences = re.split(r'(?<=[.!?])\s+', text)
-    chunks = []
-    current_chunk = ""
-    for sentence in sentences:
-        if len(current_chunk) + len(sentence) + (1 if current_chunk else 0) <= max_chunk_size:
-            current_chunk += (sentence + " ").strip()
-        else:
-            if current_chunk:
-                chunks.append(current_chunk)
-            current_chunk = (sentence + " ").strip()
-    if current_chunk:
-        chunks.append(current_chunk)
-    return chunks
+    formatted_prompt = prompt_template_str.replace("{{chunk}}", chunk)
 
-async def call_llm_api(prompt: str, task: str) -> Dict[str, Any]:
-    """
-    Makes an actual LLM API call to Google Gemini.
-    """
-    logger.info(f"Calling LLM for task: {task} with prompt sample: {prompt[:100]}...")
+    # Handle other specific placeholders if the chosen prompt uses them
+    for key, value in kwargs.items():
+        placeholder = f"{{{{{key}}}}}"
+        formatted_prompt = formatted_prompt.replace(placeholder, value)
 
     try:
-        genai.configure(api_key=LLM_API_KEY)
-        model = genai.GenerativeModel(LLM_MODEL_NAME)
-
-        # For detailed analysis, we expect a complex JSON structure
-        if task in ["detailed_analysis"]:
-            response = await model.generate_content_async(prompt)
-            response_text = response.text
-
-            # --- Extract JSON from markdown if present ---
-            if response_text.startswith("```json"):
-                response_text = response_text[len("```json"):].strip()
-            if response_text.endswith("```"):
-                response_text = response_text[:-len("```")].strip()
-
-            try:
-                parsed_response = json.loads(response_text)
-                return parsed_response
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse LLM response as JSON for task {task}: {e}. Response: {response_text[:500]}", exc_info=True)
-                raise HTTPException(status_code=500, detail=f"LLM returned invalid JSON for {task}: {response_text[:100]}...")
-
-        # For overall summary, we still expect plain text
-        elif task == "overall_summary":
-            response = await model.generate_content_async(prompt)
-            response_text = response.text
-            return {"summary": response_text}
-        else:
-            # Fallback for any other tasks, though 'detailed_analysis' should cover most
-            response = await model.generate_content_async(prompt)
-            return {"analysis": response.text}
-
+        response = await model.generate_content_async(
+            formatted_prompt,
+            generation_config=genai.GenerationConfig(response_mime_type="application/json")
+        )
+        return response.text
     except Exception as e:
-        logger.error(f"LLM API call failed for task {task}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"LLM analysis failed: {e}")
+        logger.error(f"LLM generation error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"LLM generation failed: {e}")
 
-def map_risk_to_color(risk_level: str) -> str:
-    """Maps risk level to a color code."""
-    if risk_level.lower() == "high":
-        return "#FF4D4D"  # Red
-    elif risk_level.lower() == "medium":
-        return "#FFA500" # Orange
-    elif risk_level.lower() == "low":
-        return "#FFD700"  # Gold/Yellow
-    else: # Neutral
-        return "#87CEEB"  # SkyBlue (or a lighter green/blue for neutral)
+# --- API Endpoints ---
 
-# --- Primary API Endpoint for Text Analysis ---
-@app.post("/analyze", response_model=FullAnalysisResponse)
-async def analyze_document_text(document: DocumentText):
+# UPDATED: response_model is now Dict[str, Any] for flexibility
+@app.post("/analyze-document-text", response_model=Dict[str, Any])
+async def analyze_document_text(doc_text: DocumentText):
     """
-    Primary API endpoint to receive a legal document (plain text) and return its comprehensive risk analysis.
-    Uses a single, comprehensive LLM call per chunk to gather all types of insights.
+    Analyzes provided legal text based on the specified prompt type.
     """
+    logger.info(f"Received request for text analysis. Prompt type: {doc_text.prompt_type}, Text length: {len(doc_text.text)}")
+
+    if doc_text.prompt_type not in PROMPT_TEMPLATES:
+        raise HTTPException(status_code=400, detail=f"Invalid prompt_type: '{doc_text.prompt_type}'. Available types are: {', '.join(PROMPT_TEMPLATES.keys())}")
+
+    # Use the first prompt in the selected category.
+    # For more granular control, you might need an index or sub-type in the future.
+    prompt_template_str = PROMPT_TEMPLATES[doc_text.prompt_type][0]
+
     try:
-        raw_text = document.text
-        logger.info(f"Received document for analysis. Length: {len(raw_text)} characters.")
+        # Pass the text to the LLM helper.
+        # For prompts requiring more specific parameters (e.g., clause_a_text),
+        # you would need to add them to DocumentText model and pass them here.
+        # For 'detailed_analysis', only 'chunk' (doc_text.text) is used.
+        llm_output = await generate_llm_response(prompt_template_str, doc_text.text)
+        logger.info(f"LLM raw output (first 500 chars): {llm_output[:500]}...")
 
-        # 1. Text Preprocessing
-        cleaned_text = preprocess_text(raw_text)
-        text_chunks = segment_text(cleaned_text)
-        logger.info(f"Document segmented into {len(text_chunks)} chunks.")
+        parsed_llm_output = json.loads(llm_output)
 
-        analysis_chunks: List[AnalysisResult] = []
-        overall_summary_parts: List[str] = []
+        # Validate and return the output based on prompt_type
+        if doc_text.prompt_type == "detailed_analysis":
+            try:
+                # Validate against the comprehensive DetailedAnalysisResult model
+                validated_output = DetailedAnalysisResult(**parsed_llm_output)
+                return validated_output.dict()
+            except ValidationError as e:
+                logger.error(f"Pydantic validation error for 'detailed_analysis' output: {e}", exc_info=True)
+                raise HTTPException(status_code=500, detail=f"LLM output for 'detailed_analysis' failed validation: {e.errors()}")
+        elif doc_text.prompt_type == "risk_identification":
+            try:
+                # Validate against the simpler RiskAnalysisResult model
+                validated_output = RiskAnalysisResult(**parsed_llm_output)
+                # You might want to add 'original_text_snippet' and 'color_code' here
+                # if you intend for all outputs to conform to a similar 'FullAnalysisResponse' structure.
+                # For now, it returns the direct RiskAnalysisResult dict.
+                return validated_output.dict()
+            except ValidationError as e:
+                logger.error(f"Pydantic validation error for 'risk_identification' output: {e}", exc_info=True)
+                raise HTTPException(status_code=500, detail=f"LLM output for 'risk_identification' failed validation: {e.errors()}")
+        # Add similar elif blocks for other prompt types (e.g., 'jargon_simplification', 'overall_summary')
+        # if they have specific Pydantic models or require custom processing.
+        else:
+            # For other prompt types, if no specific Pydantic model is defined,
+            # return the raw parsed JSON.
+            logger.info(f"Returning raw JSON for prompt_type: {doc_text.prompt_type}")
+            return parsed_llm_output
 
-        # 2. LLM Interaction for Each Chunk (now a single, comprehensive call)
-        for i, chunk in enumerate(text_chunks):
-            # --- USING NEW DETAILED_ANALYSIS PROMPT ---
-            # Using the first (and likely only) detailed_analysis prompt
-            detailed_analysis_prompt_template = PROMPT_TEMPLATES["detailed_analysis"][0]
-            detailed_prompt = detailed_analysis_prompt_template.format(chunk=chunk)
-
-            detailed_analysis_output = await call_llm_api(detailed_prompt, "detailed_analysis")
-
-            # Extract data from the comprehensive JSON output
-            risk_level = detailed_analysis_output.get("risk_level", "neutral")
-            simplified_explanation = detailed_analysis_output.get("simplified_explanation", "No specific explanation provided.")
-            inter_dependencies = detailed_analysis_output.get("inter_clause_dependencies", [])
-
-            # Capture all other detailed results
-            # Exclude the fields already extracted for top-level keys
-            other_detailed_results = {
-                k: v for k, v in detailed_analysis_output.items()
-                if k not in ["risk_level", "simplified_explanation", "inter_clause_dependencies"]
-            }
-
-            analysis_chunks.append(AnalysisResult(
-                original_text_snippet=chunk,
-                risk_level=risk_level,
-                color_code=map_risk_to_color(risk_level),
-                simplified_explanation=simplified_explanation,
-                inter_clause_dependencies=inter_dependencies,
-                detailed_analysis_results=other_detailed_results
-            ))
-            # Use simplified explanation for overall summary parts
-            overall_summary_parts.append(f"Chunk {i+1} ({risk_level} risk): {simplified_explanation}")
-
-        # --- Overall Summary ---
-        overall_summary_prompt_template = PROMPT_TEMPLATES["overall_summary"][0] # Still uses first overall_summary prompt
-        overall_summary_prompt = overall_summary_prompt_template.format(
-            summary_parts=' '.join(overall_summary_parts),
-            raw_text_snippet=raw_text[:2000] # Provide a snippet of original text for context
-        )
-        overall_summary_output = await call_llm_api(overall_summary_prompt, "overall_summary")
-        overall_summary_text = overall_summary_output.get("summary", "Overall summary could not be generated.")
-
-        return FullAnalysisResponse(
-            document_title="Analyzed Legal Document", # You might prompt LLM for this or use filename if uploaded
-            total_chunks=len(analysis_chunks),
-            analysis_chunks=analysis_chunks,
-            overall_summary=overall_summary_text
-        )
-
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decoding error from LLM. Raw LLM output: {llm_output}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"LLM did not return valid JSON: {e}")
     except HTTPException as e:
+        # Re-raise FastAPI HTTPExceptions directly
         raise e
     except Exception as e:
-        logger.error(f"An unexpected error occurred during document analysis: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+        logger.error(f"An unexpected error occurred during analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
 
-# --- Stretch Goal: File Uploads ---
-# You'll need to install 'python-multipart', 'PyPDF2', 'python-docx'
-from PyPDF2 import PdfReader
-import docx
-
-@app.post("/upload-and-analyze", response_model=FullAnalysisResponse)
+# UPDATED: response_model is now Dict[str, Any] for consistency with /analyze-document-text
+@app.post("/upload-and-analyze", response_model=Dict[str, Any])
 async def upload_and_analyze_document(file: UploadFile = File(...)):
     """
-    Stretch Goal: Receives a document file (PDF or DOCX), extracts text, and performs comprehensive analysis.
+    Receives a document file (PDF or DOCX), extracts text, and performs analysis.
+    Defaults to 'detailed_analysis' for file uploads.
     """
     extracted_text = ""
     try:
@@ -215,17 +167,18 @@ async def upload_and_analyze_document(file: UploadFile = File(...)):
             logger.info(f"Processing PDF file: {file.filename}")
             reader = PdfReader(io.BytesIO(file_content))
             for page in reader.pages:
-                extracted_text += page.extract_text() + "\n"
+                extracted_text += page.extract_text() + "\n" # Use \n for newline
         elif file.filename.endswith(".docx"):
             logger.info(f"Processing DOCX file: {file.filename}")
             document = docx.Document(io.BytesIO(file_content))
             for paragraph in document.paragraphs:
-                extracted_text += paragraph.text + "\n"
+                extracted_text += paragraph.text + "\n" # Use \n for newline
         else:
             raise HTTPException(status_code=400, detail="Unsupported file type. Please upload PDF or DOCX.")
 
-        document_for_analysis = DocumentText(text=extracted_text)
-        # Call analyze_document_text, which now performs comprehensive analysis
+        # For file uploads, automatically use the 'detailed_analysis' prompt type.
+        # You could add a query parameter to allow the user to select this from the UI/request.
+        document_for_analysis = DocumentText(text=extracted_text, prompt_type="detailed_analysis")
         return await analyze_document_text(document_for_analysis)
 
     except HTTPException as e:
