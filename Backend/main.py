@@ -10,6 +10,9 @@ import json # JSON responses from LLM
 from PyPDF2 import PdfReader # For PDF processing
 import docx # For DOCX processing
 
+# Import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+
 # Import PROMPT_TEMPLATES from the new prompts.py file
 from prompts import PROMPT_TEMPLATES
 
@@ -26,6 +29,22 @@ app = FastAPI(
     title="Legal Document Risk Analysis Backend",
     description="Processes legal documents, interacts with LLMs for risk analysis, and structures data for frontend visualization.",
     version="1.0.0"
+)
+
+# --- CORS Configuration ---
+# Add this block after app = FastAPI(...)
+origins = [
+    "http://localhost",
+    "http://localhost:5173",  # Your frontend's address
+    # Add other origins if your frontend might run on different ports/domains
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, PUT, DELETE, OPTIONS, etc.)
+    allow_headers=["*"],  # Allows all headers
 )
 
 # --- Models for Request and Response ---
