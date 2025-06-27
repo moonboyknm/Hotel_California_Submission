@@ -1,0 +1,19 @@
+# Python virtual environment
+venv/
+.venv/
+# Specific to your project's backend venv
+Backend/BackVenv/
+
+# Byte-code files
+__pycache__/
+
+# Editor/IDE specific files (optional, but good practice)
+.vscode/
+.idea/
+
+# Other common ignore patterns (optional, but useful)
+*.pyc
+*.log
+.DS_Store # macOS
+*.env
+.env/
